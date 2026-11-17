@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#17212b">
+<title>Corner Pocket POS</title>
+<style>
+:root{--bg:#101820;--panel:#1b2834;--panel2:#243443;--gold:#e6b85c;--green:#2fba79;--red:#e15b5b;--muted:#a9b8c5;--text:#f4f6f8}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,"Noto Sans Myanmar",sans-serif}
+header{position:sticky;top:0;background:#17212b;padding:14px 16px;z-index:5;border-bottom:1px solid #334655;display:flex;align-items:center;justify-content:space-between;gap:10px}
+h1{font-size:19px;margin:0;color:var(--gold)}.sub{font-size:12px;color:var(--muted)}
+nav{display:flex;gap:7px;overflow:auto;padding:10px;background:#17212b}
+button,.btn{border:0;border-radius:9px;padding:10px 13px;background:var(--panel2);color:var(--text);font-weight:650;cursor:pointer}
+button.active{background:var(--gold);color:#1c2228}button.primary{background:var(--green);color:#071b12}button.danger{background:var(--red);color:white}
+main{padding:12px;max-width:1100px;margin:auto}.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:10px}
+.table{background:var(--panel);border:1px solid #354958;border-radius:13px;padding:12px;min-height:130px;display:flex;flex-direction:column;justify-content:space-between}
+.table.open{border:2px solid var(--green)}.table h3{margin:0;font-size:17px}.table .state{font-size:12px;color:var(--muted)}.table .time{font-size:19px;font-weight:750;margin:8px 0}.table .actions{display:flex;gap:6px}.table button{flex:1;padding:9px 5px;font-size:12px}
+.panel{background:var(--panel);border:1px solid #354958;border-radius:12px;padding:14px;margin:10px 0}
+h2{font-size:18px;margin:4px 0 12px;color:var(--gold)}label{display:block;font-size:13px;color:var(--muted);margin:10px 0 5px}
+input,select{width:100%;padding:11px;border-radius:8px;border:1px solid #526777;background:#101820;color:var(--text);font-size:15px}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}.muted{color:var(--muted);font-size:13px}
+.hidden{display:none!important}.pill{display:inline-block;background:#344b5c;padding:4px 8px;border-radius:20px;font-size:12px}
+.list{width:100%;border-collapse:collapse}.list td,.list th{padding:9px 6px;border-bottom:1px solid #354958;text-align:left;font-size:13px}
+.total{font-size:22px;font-weight:800;color:var(--gold)}.smallbtn{padding:6px 9px;font-size:12px}
+#modal{position:fixed;inset:0;background:#000b;display:none;align-items:center;justify-content:center;padding:14px;z-index:10}
+#modal .box{background:var(--panel);border:1px solid #526777;border-radius:14px;padding:16px;width:min(520px,100%);max-height:90vh;overflow:auto}
+footer{text-align:center;color:var(--muted);font-size:11px;padding:22px}
+@media print{header,nav,.no-print,button{display:none!important}body{background:white;color:black}.panel{border:0;color:black}.muted{color:#333}}
+</style>
+</head>
+<body>
+<header><div><h1>🎱 Corner Pocket POS</h1><div class="sub">Offline • 15 Tables • Local device storage</div></div><span class="pill" id="clock"></span></header>
+<nav class="no-print">
+<button class="active" data-tab="tables">ခုံများ</button><button data-tab="sales">အရောင်းစာရင်း</button><button data-tab="reports">စာရင်းချုပ်</button><button data-tab="settings">Settings</button>
+</nav>
+<main>
+<section id="tables">
+  <div class="row" style="align-items:center;margin-bottom:10px"><div><h2>ခုံ ၁၅ ခုံ</h2><div class="muted">အဖွင့် / အပိတ်သာရှိသည်။ Pause မပါဝင်ပါ။</div></div><div class="muted" id="summary"></div></div>
+  <div class="grid" id="tableGrid"></div>
+</section>
+<section id="sales" class="hidden">
+  <h2>အစားအသောက် အရောင်း</h2>
+  <div class="panel"><div class="row"><div><label>ပစ္စည်း</label><select id="foodSelect"></select></div><div><label>အရေအတွက်</label><input id="foodQty" type="number" min="1" value="1"></div></div><button class="primary" onclick="addFoodSale()" style="margin-top:12px">အရောင်းထည့်မည်</button></div>
+  <div class="panel"><h2>ယနေ့ အရောင်းများ</h2><div id="salesList"></div></div>
+</section>
+<section id="reports" class="hidden">
+  <h2>စာရင်းချုပ်</h2>
+  <div class="row"><div class="panel"><div class="muted">ယနေ့ စုစုပေါင်း</div><div class="total" id="todayTotal">0 Ks</div></div><div class="panel"><div class="muted">လက်ရှိဖွင့်ထားသောခုံ</div><div class="total" id="openCount">0</div></div></div>
+  <div class="panel"><label>ရက်စွဲအလိုက် ရှာရန်</label><input type="date" id="reportDate"><div id="reportResult" style="margin-top:12px"></div></div>
+  <div class="panel"><h2>နောက်ဆုံးပိတ်သိမ်းထားသော Bill များ</h2><div id="historyList"></div></div>
+</section>
+<section id="settings" class="hidden">
+ <h2>Owner Settings</h2><div class="panel"><p class="muted">ဈေးနှုန်း၊ ဝန်ထမ်း၊ အစားအသောက်နှင့် PIN ပြင်ရန် Owner PIN လိုအပ်သည်။ မူလ PIN = 1234</p><button class="primary" onclick="unlockSettings()">Settings ဖွင့်မည်</button></div>
+ <div id="settingsBody" class="hidden">
+  <div class="panel"><h2>ခုံဈေးနှုန်း (တစ်နာရီ)</h2><div class="row"><div><label>ခုံအသေး</label><input id="smallRate" type="number"></div><div><label>ခုံအကြီး</label><input id="largeRate" type="number"></div><div><label>Marker ကြေး / တစ်နာရီ</label><input id="markerRate" type="number"></div></div><button class="primary" onclick="saveRates()">ဈေးနှုန်းသိမ်းမည်</button></div>
+  <div class="panel"><h2>ခုံအမျိုးအစား</h2><div id="tableTypes"></div><button class="primary" onclick="saveTableTypes()">ခုံအမျိုးအစားသိမ်းမည်</button></div>
+  <div class="panel"><h2>ဝန်ထမ်း / Marker</h2><div class="row"><div><label>ဝန်ထမ်းအသစ်</label><input id="staffName" placeholder="အမည်"></div><div><label>အမျိုးအစား</label><select id="staffRole"><option>ဝန်ထမ်း</option><option>Marker</option><option>နှစ်မျိုးလုံး</option></select></div></div><button onclick="addStaff()">ထည့်မည်</button><div id="staffList"></div></div>
+  <div class="panel"><h2>အစားအသောက်ဈေးနှုန်း</h2><div class="row"><div><label>ပစ္စည်းအမည်</label><input id="foodName" placeholder="ဥပမာ - ရေသန့်"></div><div><label>ဈေးနှုန်း</label><input id="foodPrice" type="number"></div></div><button onclick="addFood()">ပစ္စည်းထည့်မည်</button><div id="foodList"></div></div>
+  <div class="panel"><h2>Owner PIN ပြောင်းရန်</h2><label>PIN အသစ် (ဂဏန်း ၄ လုံးနှင့်အထက်)</label><input id="newPin" type="password"><button onclick="changePin()">PIN ပြောင်းမည်</button></div>
+  <div class="panel"><button class="danger" onclick="exportData()">ဒေတာ Backup ထုတ်ရန်</button> <button onclick="document.getElementById('importFile').click()">Backup ပြန်ထည့်ရန်</button><input id="importFile" type="file" accept="application/json" class="hidden" onchange="importData(event)"></div>
+ </div>
+</section>
+</main>
+<div id="modal"><div class="box" id="modalContent"></div></div>
+<footer>Corner Pocket POS • Offline prototype • Data is saved on this browser/device. Please export a backup regularly.</footer>
+<script>
+const defaults={pin:"1234",rates:{small:9500,large:12000,marker:900},tables:Array.from({length:15},(_,i)=>({id:i+1,type:"small",start:null,marker:"",staff:"",foods:[]})),staff:[],foods:[],sales:[],bills:[]};
+let db=load();
+function load(){try{return JSON.parse(localStorage.getItem("cornerPocket15"))||structuredClone(defaults)}catch(e){return JSON.parse(JSON.stringify(defaults))}}
+function save(){localStorage.setItem("cornerPocket15",JSON.stringify(db));renderAll()}
+function money(n){return Math.round(n||0).toLocaleString("en-US")+" Ks"}
+function dateKey(d=new Date()){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function duration(start){return start?Math.max(0,(Date.now()-start)/60000):0}
+function charge(t){let mins=duration(t.start),rate=db.rates[t.type]||0;return Math.ceil(mins/60*rate)}
+function markerCharge(t){return t.marker?Math.ceil(duration(t.start)/60*(db.rates.marker||0)):0}
+function esc(s){return String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function renderTables(){
+ let g=document.getElementById("tableGrid"),opened=db.tables.filter(t=>t.start).length;
+ document.getElementById("summary").textContent=`ဖွင့်ထား ${opened} / 15 ခုံ`;
+ g.innerHTML=db.tables.map(t=>`<div class="table ${t.start?'open':''}"><div><h3>🎱 ခုံ ${t.id}</h3><div class="state">${t.type==="small"?"ခုံအသေး":"ခုံအကြီး"} • ${t.start?"ဖွင့်ထား":"ပိတ်ထား"}</div></div><div class="time">${t.start?money(charge(t)+markerCharge(t)):"—"}</div><div class="muted">${t.start?Math.floor(duration(t.start)/60)+" နာရီ "+Math.floor(duration(t.start)%60)+" မိနစ်":money(db.rates[t.type])+"/နာရီ"}</div><div class="actions">${t.start?`<button class="danger" onclick="closeTable(${t.id})">Bill / ပိတ်</button><button onclick="tableOptions(${t.id})">•••</button>`:`<button class="primary" onclick="openTable(${t.id})">ဖွင့်မည်</button>`}</div></div>`).join("");
+}
+function openTable(id){let t=db.tables[id-1];if(t.start)return;let staffOpts=db.staff.filter(s=>s.role!=="Marker").map(s=>`<option>${esc(s.name)}</option>`).join("");let markerOpts=db.staff.filter(s=>s.role!=="ဝန်ထမ်း").map(s=>`<option>${esc(s.name)}</option>`).join("");showModal(`<h2>ခုံ ${id} ဖွင့်မည်</h2><label>တာဝန်ခံဝန်ထမ်း</label><select id="openStaff"><option value="">မရွေးပါ</option>${staffOpts}</select><label>Marker (မပါလျှင် မရွေးပါ)</label><select id="openMarker"><option value="">Marker မပါ</option>${markerOpts}</select><p class="muted">ဖွင့်ပြီးပါက အချိန်စတင်တွက်မည်။</p><button class="primary" onclick="confirmOpen(${id})">စတင်မည်</button> <button onclick="hideModal()">မလုပ်တော့</button>`)}
+function confirmOpen(id){let t=db.tables[id-1];t.start=Date.now();t.staff=document.getElementById("openStaff").value;t.marker=document.getElementById("openMarker").value;t.foods=[];hideModal();save()}
+function tableOptions(id){let t=db.tables[id-1];showModal(`<h2>ခုံ ${id} စီမံရန်</h2><button onclick="transferTable(${id})">အခြားခုံသို့ ပြောင်းမည်</button><button onclick="showTableBill(${id})">လက်ရှိ Bill ကြည့်မည်</button><button onclick="hideModal()">ပိတ်မည်</button>`)}
+function transferTable(id){let choices=db.tables.filter(t=>!t.start&&t.id!==id).map(t=>`<option value="${t.id}">ခုံ ${t.id}</option>`).join("");showModal(`<h2>ခုံ ${id} မှ ပြောင်းရန်</h2><label>သွားမည့်ခုံ</label><select id="toTable">${choices}</select><button class="primary" onclick="confirmTransfer(${id})">ပြောင်းမည်</button> <button onclick="hideModal()">မလုပ်တော့</button>`)}
+function confirmTransfer(id){let dest=Number(document.getElementById("toTable").value),a=db.tables[id-1],b=db.tables[dest-1];if(!dest||b.start)return alert("ရွေးထားသောခုံ မအားပါ။");b.start=a.start;b.marker=a.marker;b.staff=a.staff;b.foods=a.foods;a.start=null;a.marker="";a.staff="";a.foods=[];hideModal();save()}
+function showTableBill(id){let t=db.tables[id-1];showModal(`<h2>ခုံ ${id} လက်ရှိ Bill</h2><p>ခုံကြေး: ${money(charge(t))}</p><p>Marker: ${t.marker||"မပါ"} ${money(markerCharge(t))}</p><p>ဝန်ထမ်း: ${esc(t.staff)}</p><p class="total">${money(charge(t)+markerCharge(t)+t.foods.reduce((s,x)=>s+x.price*x.qty,0))}</p><button onclick="addFoodToTable(${id})">အစားအသောက်ထည့်မည်</button> <button onclick="hideModal()">ပိတ်</button>`)}
+function addFoodToTable(id){if(!db.foods.length)return alert("Settings မှာ အစားအသောက်ထည့်ပါ။");let opts=db.foods.map((f,i)=>`<option value="${i}">${esc(f.name)} - ${money(f.price)}</option>`).join("");showModal(`<h2>ခုံ ${id} အတွက် အစားအသောက်</h2><label>ပစ္စည်း</label><select id="tableFood">${opts}</select><label>အရေအတွက်</label><input id="tableFoodQty" type="number" min="1" value="1"><button class="primary" onclick="confirmTableFood(${id})">ထည့်မည်</button>`)}
+function confirmTableFood(id){let t=db.tables[id-1],f=db.foods[Number(document.getElementById("tableFood").value)],qty=Math.max(1,Number(document.getElementById("tableFoodQty").value)||1);t.foods.push({name:f.name,price:f.price,qty});hideModal();save()}
+function closeTable(id){let pin=prompt("ခုံပိတ်ရန် Owner PIN ထည့်ပါ");if(pin!==db.pin)return alert("PIN မှားနေပါသည်။");let t=db.tables[id-1];let foodTotal=t.foods.reduce((s,x)=>s+x.price*x.qty,0),tableTotal=charge(t),markTotal=markerCharge(t),total=tableTotal+markTotal+foodTotal;let bill={id:Date.now(),table:id,opened:t.start,closed:Date.now(),staff:t.staff,marker:t.marker,tableTotal,markTotal,foodTotal,total,foods:t.foods};db.bills.unshift(bill);t.start=null;t.marker="";t.staff="";t.foods=[];save();showModal(`<h2>Bill • ခုံ ${id}</h2><p>ခုံကြေး: ${money(tableTotal)}</p><p>Marker ကြေး: ${money(markTotal)}</p><p>အစားအသောက်: ${money(foodTotal)}</p><hr><div class="total">စုစုပေါင်း ${money(total)}</div><p>ဝန်ထမ်း: ${esc(bill.staff)} • Marker: ${esc(bill.marker||"မပါ")}</p><button class="primary" onclick="print()">Voucher ထုတ်မည်</button> <button onclick="hideModal()">ပြီးပြီ</button>`)}
+function addFoodSale(){let i=Number(document.getElementById("foodSelect").value),f=db.foods[i];if(!f)return alert("အစားအသောက်ကို Settings မှာ အရင်ထည့်ပါ။");let qty=Math.max(1,Number(document.getElementById("foodQty").value)||1);db.sales.unshift({date:Date.now(),name:f.name,qty,price:f.price,total:f.price*qty});save()}
+function unlockSettings(){let p=prompt("Owner PIN ထည့်ပါ");if(p!==db.pin)return alert("PIN မှားနေပါသည်။");document.getElementById("settingsBody").classList.remove("hidden");renderSettings()}
+function renderSettings(){document.getElementById("smallRate").value=db.rates.small;document.getElementById("largeRate").value=db.rates.large;document.getElementById("markerRate").value=db.rates.marker;document.getElementById("tableTypes").innerHTML=db.tables.map(t=>`<div class="row" style="align-items:center"><div>ခုံ ${t.id}</div><div><select id="type${t.id}" ${t.start?"disabled":""}><option value="small" ${t.type==="small"?"selected":""}>အသေး</option><option value="large" ${t.type==="large"?"selected":""}>အကြီး</option></select></div></div>`).join("");document.getElementById("staffList").innerHTML=db.staff.map((s,i)=>`<p>${esc(s.name)} — ${esc(s.role)} <button class="smallbtn danger" onclick="removeStaff(${i})">ဖျက်</button></p>`).join("");document.getElementById("foodList").innerHTML=db.foods.map((f,i)=>`<p>${esc(f.name)} — ${money(f.price)} <button class="smallbtn danger" onclick="removeFood(${i})">ဖျက်</button></p>`).join("")}
+function saveRates(){db.rates={small:Number(smallRate.value)||0,large:Number(largeRate.value)||0,marker:Number(markerRate.value)||0};save();alert("ဈေးနှုန်းသိမ်းပြီးပါပြီ။")}
+function saveTableTypes(){db.tables.forEach(t=>{if(!t.start)t.type=document.getElementById("type"+t.id).value});save();alert("ခုံအမျိုးအစား သိမ်းပြီးပါပြီ။")}
+function addStaff(){let name=staffName.value.trim();if(!name)return;db.staff.push({name,role:staffRole.value});staffName.value="";save()}
+function removeStaff(i){if(confirm("ဝန်ထမ်းကို ဖျက်မလား?")){db.staff.splice(i,1);save()}}
+function addFood(){let name=foodName.value.trim(),price=Number(foodPrice.value);if(!name||price<0)return;db.foods.push({name,price});foodName.value="";foodPrice.value="";save()}
+function removeFood(i){if(confirm("ပစ္စည်းကို ဖျက်မလား?")){db.foods.splice(i,1);save()}}
+function changePin(){let p=newPin.value;if(p.length<4)return alert("PIN အနည်းဆုံး ၄ လုံးထားပါ။");db.pin=p;newPin.value="";save();alert("PIN ပြောင်းပြီးပါပြီ။")}
+function renderSales(){foodSelect.innerHTML=db.foods.map((f,i)=>`<option value="${i}">${esc(f.name)} — ${money(f.price)}</option>`).join("");salesList.innerHTML=db.sales.filter(s=>dateKey(new Date(s.date))===dateKey()).map(s=>`<p>${esc(s.name)} × ${s.qty} = ${money(s.total)}</p>`).join("")||"<p class='muted'>ယနေ့ အရောင်းမရှိသေးပါ။</p>"}
+function renderReports(){let today=db.bills.filter(b=>dateKey(new Date(b.closed))===dateKey()).reduce((s,b)=>s+b.total,0)+db.sales.filter(s=>dateKey(new Date(s.date))===dateKey()).reduce((s,b)=>s+b.total,0);todayTotal.textContent=money(today);openCount.textContent=db.tables.filter(t=>t.start).length;reportDate.value=reportDate.value||dateKey();let key=reportDate.value,bs=db.bills.filter(b=>dateKey(new Date(b.closed))===key),ss=db.sales.filter(s=>dateKey(new Date(s.date))===key),sum=bs.reduce((s,b)=>s+b.total,0)+ss.reduce((s,b)=>s+b.total,0);reportResult.innerHTML=`<p>ခုံ Bill ${bs.length} ခု • အစားအသောက်အရောင်း ${ss.length} ခု</p><div class="total">${money(sum)}</div>`;historyList.innerHTML=db.bills.slice(0,30).map(b=>`<p>ခုံ ${b.table} • ${new Date(b.closed).toLocaleString()} • ${money(b.total)}</p>`).join("")||"<p class='muted'>မှတ်တမ်းမရှိသေးပါ။</p>"}
+function renderAll(){renderTables();renderSales();renderReports();if(!settingsBody.classList.contains("hidden"))renderSettings()}
+function showModal(s){modalContent.innerHTML=s;modal.style.display="flex"}function hideModal(){modal.style.display="none"}
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");document.querySelectorAll("main section").forEach(s=>s.classList.add("hidden"));document.getElementById(b.dataset.tab).classList.remove("hidden");renderAll()});
+reportDate.addEventListener("change",renderReports);
+function exportData(){let blob=new Blob([JSON.stringify(db,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="corner-pocket-backup-"+dateKey()+".json";a.click();URL.revokeObjectURL(a.href)}
+function importData(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let d=JSON.parse(r.result);if(!d.tables||d.tables.length!==15)throw 0;if(!confirm("လက်ရှိဒေတာကို Backup ဒေတာဖြင့် အစားထိုးမလား?"))return;db=d;save();alert("Backup ပြန်ထည့်ပြီးပါပြီ။")}catch(x){alert("Backup ဖိုင်မမှန်ပါ။")}};r.readAsText(f)}
+setInterval(()=>{clock.textContent=new Date().toLocaleTimeString();renderTables()},15000);renderAll();
+</script>
+</body></html>
